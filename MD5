@@ -1,4 +1,4 @@
-0350d4777164a4e065a968f5d348cedf *DESCRIPTION
+6b40cf39da50f57f17fd8ab8594adfa2 *DESCRIPTION
 773aaf1c869faea9d0f59311adf610dc *NAMESPACE
 b689e0585f4f1d05e5e5a17c262860ec *R/data.R
 f950573f7a0bd0189118cafb0202dc4b *R/secsse_loglik.R
@@ -8,9 +8,9 @@ cd5a725cefef90429822dec067e4ccd5 *R/secsse_utils.R
 4447c7fdffc4c530884df1da60d56375 *build/vignette.rds
 a0af3149ac497eba803e09bf8d3e87ca *data/phylo_Vign.RData
 4ddf644968a992ddbcc1f156385c8633 *data/traitinfo.RData
-499664af84a8869667d59c571aafe42c *inst/doc/Using_secsse.R
-a4bba00f23c097583eb6c0114de31990 *inst/doc/Using_secsse.Rmd
-b59ae641d0890999b11035ebdef22396 *inst/doc/Using_secsse.html
+c44636d923985f4044f599408efdd04c *inst/doc/Using_secsse.R
+cc72b9b3dc412b03056fb6e19edb6e10 *inst/doc/Using_secsse.Rmd
+88fb236af8cca0e2e2cad217b06880c3 *inst/doc/Using_secsse.html
 d433996cfa027c4fd2f898a1f523e3e8 *man/id_paramPos.Rd
 e151f885e92a53e61f1a9ce91a3c068f *man/phylo_Vign.Rd
 a79ef10e010c99a43d33863789182c78 *man/q_doubletrans.Rd
@@ -19,8 +19,8 @@ fd76a3e47af69c2e80b4d4bf781db296 *man/secsse_ml.Rd
 e94b083fb9309aa2ae76f81c8ca18957 *man/secsse_ml_func_def_pars.Rd
 6b38b91410525fc758b2e8f455488610 *man/sortingtraits.Rd
 8403d9bc022a82bd180df4ba3d0176d4 *man/traitinfo.Rd
-7fcd5dcb37ccf4b460f0d355c65458f5 *src/Makevars
+3ba6c522bed718c0aaa727f57e5a1026 *src/Makevars
 55280d0644448fd6af8836addcc0cf09 *src/R_init_secsse.c
-09e7242328497aa7dc1e9140476cbb0a *src/secsse_loglik_rhs_FORTRAN.f
-f92a975ce7a21f5707d656e6cdd7a18f *tests/testthat/test_secsse.R
-a4bba00f23c097583eb6c0114de31990 *vignettes/Using_secsse.Rmd
+08d7a2a5eff1e57ed41a5ccdc4efea74 *src/secsse_loglik_rhs_FORTRAN.f95
+97c2d0c06e19879943c82cfdf8c56a64 *tests/testthat/test_secsse.R
+cc72b9b3dc412b03056fb6e19edb6e10 *vignettes/Using_secsse.Rmd

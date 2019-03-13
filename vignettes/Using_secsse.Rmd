@@ -20,19 +20,17 @@ A good practice is always remove all the objects in memory and then load SecSSE:
 ```{r}
 rm(list = ls())
 library(secsse)
-library(DDD)
 ```
 
 Similar to the 'diversitree' (Fitzjohn et al. 2012) and 'hisse' (Beaulieu & O'Meara 2016) packages, SecSSE uses two input files: a rooted, ultrametric tree in nexus format (for conversion of other formats to nexus, we refer to the documentation in package 'ape') and a data file with two columns, the first containing taxa names and the second a numeric code for trait state with a header (usually 0,1,2,3, etc., but notice that 'NA' is a valid code too, if you are not sure what trait state to assign to a taxon). A comma-separated value file (.csv) generated in MsExcel works particularly well. The *.csv file can be loaded into R using the read.csv() function. and should look like this:
 
 ```{r}
 data(traitinfo)
-trait<-traitinfo
+trait <- traitinfo
 tail(trait)
 ```
 
 This data set (here we see only the bottom lines of the data frame) has three character states labeled as 1, 2 and 3. Notice that unless you want to assign ambiguity to some but not all states (see below), the third column in your data file should be empty. Ambiguity about trait state (you are not sure which trait state to assign a taxon too, or you have no data on trait state for a particular taxon), can be assigned using 'NA'. SecSSE handles 'NA' differently from a full trait state, in that it assigns probabilities to all trait states for a taxon demarcated with 'NA'.  
-
 
 The second object we need is an ultrametric phylogenetic tree, that is rooted and has labeled tips. One can load it in R by using read.nexus(). In our example we load a prepared phylogeny named "phylo_Vign":
 
@@ -43,7 +41,7 @@ data("phylo_Vign")
 For running SecSSE it is important that tree tip labels agree with taxon names in the data file, but also that these are in the same order. For this purpose, we run the following piece of code prior to any analysis:
 
 ```{r}
-traits<-sortingtraits(trait,phylo_Vign)
+traits <- sortingtraits(trait,phylo_Vign)
 ```
 
 If there is a mismatch in the number of taxa between data and tree file, you will receive an error message. However, to then identify which taxa are causing issues and if they are in the tree or data file, you can use the name.check function in the 'geiger'(Harmon et al. 2008) package:
@@ -51,9 +49,9 @@ If there is a mismatch in the number of taxa between data and tree file, you wil
 ```{r}
 library(geiger)
 #making sure that the first line is identified as containing header info:
-rownames(trait)<-trait[,1]
+rownames(trait) <- trait[,1]
 #pick out all elements that do not agree between tree and data
-mismat<-name.check(phylo_Vign,trait)
+mismat <- name.check(phylo_Vign,trait)
 #this will call all taxa that are in the tree, but not the data file
 #mismat$tree_not_data
 #and conversely,
@@ -82,7 +80,7 @@ The following is a visual example of the input parameters of SecSSE, this list i
 ```{r}
 #First we have to define idparslist, as well as, again, a user-specified value for the number of concealed states to be assessed by SecSSE.
 
-idparslist<-id_paramPos(traits, num_concealed_states = 3)
+idparslist <- id_paramPos(traits, num_concealed_states = 3)
 
 #Let's take a look at the full all-free model by now simply typing
 
@@ -92,33 +90,33 @@ idparslist
 If we would like the speciation rate of states 1B and 2B to be the same, we can do this as follows:
 
 ```{r}
-#idparslist[[1]][c(5,6)]<-5 
+#idparslist[[1]][c(5,6)] <- 5 
 ```
 
 Notice that if one were to set extinction parameters to be the same, the numbering used to identify parameters is not the same as that in idparslist, but rather consecutive numbering referring to the elements within the extinction parameters component in idparslist:
 
 ```{r}
-#idparslist[[2]][c(1:9)]<-7
+#idparslist[[2]][c(1:9)] <- 7
 ```
 
 There are also several things we can do to improve the rate matrix and reduce its computational complexity. First of all, we should leave transitions between the same state out of the calculations with a simple command that orders all values on the diagonal of the matrix not to be calculated. This is included as a default within idparslist, but after modifying the q matrix in any way, it is a good idea to ensure that the diagonals are still not included in the calculations:
 
 ```{r}
-diag(idparslist[[3]])<-NA
+diag(idparslist[[3]]) <- NA
 ```
 
 Additionally, we would like to set all dual transitions (so for example from state 0 to 1 AND from concealed state A to B) to 0, as these are unlikely to occur. It is a bit of a matter of personal preference whether or not you should do this, but we follow Beaulieu & O'Meara (2016) here and set dual transitions to zero. One good reason for doing so is simply to reduce computational burden.  
 
 ```{r}
-idparslist[[3]][1,c(5,6,8,9)]<-0
-idparslist[[3]][2,c(4,6,7,9)]<-0
-idparslist[[3]][3,c(4,5,7,8)]<-0
-idparslist[[3]][4,c(2,3,8,9)]<-0
-idparslist[[3]][5,c(1,3,7,9)]<-0
-idparslist[[3]][6,c(1,2,7,8)]<-0
-idparslist[[3]][7,c(2,3,5,6)]<-0
-idparslist[[3]][8,c(1,3,4,6)]<-0
-idparslist[[3]][9,c(1,2,4,5)]<-0
+idparslist[[3]][1,c(5,6,8,9)] <- 0
+idparslist[[3]][2,c(4,6,7,9)] <- 0
+idparslist[[3]][3,c(4,5,7,8)] <- 0
+idparslist[[3]][4,c(2,3,8,9)] <- 0
+idparslist[[3]][5,c(1,3,7,9)] <- 0
+idparslist[[3]][6,c(1,2,7,8)] <- 0
+idparslist[[3]][7,c(2,3,5,6)] <- 0
+idparslist[[3]][8,c(1,3,4,6)] <- 0
+idparslist[[3]][9,c(1,2,4,5)] <- 0
 ```
 
 These three actions together then yield the following:
@@ -132,52 +130,52 @@ Notice that all entries in the lambda and mu vectors, as well as the rate matrix
 Numbers in all elements of the list can be skipped without a problem, as long as they are supplied correctly to other arguments. When Q-matrices get larger, it can be good to specify all values in the matrices separately and consecutively (no matter how laborious), for reasons of intuition. This can facilitate setting up idparsopt, idparsfix, and initparsopt, as well as help in setting up different models (using various combinations of parameter constraints) along the way. Here is a piece of code that can be copied for a 3-state analysis:
 
 ```{r}
-idparslist[[3]][1,c(2)]<-19
-idparslist[[3]][1,c(3)]<-20
-idparslist[[3]][1,c(4)]<-21
-idparslist[[3]][1,c(7)]<-22
-idparslist[[3]][1,c(5,6,8,9)]<-0
-idparslist[[3]][2,c(1)]<-23
-idparslist[[3]][2,c(3)]<-24
-idparslist[[3]][2,c(5)]<-25
-idparslist[[3]][2,c(8)]<-26
-idparslist[[3]][2,c(4,6,7,9)]<-0
-idparslist[[3]][3,c(1)]<-27
-idparslist[[3]][3,c(2)]<-28
-idparslist[[3]][3,c(6)]<-29
-idparslist[[3]][3,c(9)]<-30
-idparslist[[3]][3,c(4,5,7,8)]<-0
-idparslist[[3]][4,c(1)]<-31
-idparslist[[3]][4,c(5)]<-32
-idparslist[[3]][4,c(6)]<-33
-idparslist[[3]][4,c(7)]<-34
-idparslist[[3]][4,c(2,3,8,9)]<-0
-idparslist[[3]][5,c(2)]<-35
-idparslist[[3]][5,c(4)]<-36
-idparslist[[3]][5,c(6)]<-37
-idparslist[[3]][5,c(8)]<-38
-idparslist[[3]][5,c(1,3,7,9)]<-0
-idparslist[[3]][6,c(3)]<-39
-idparslist[[3]][6,c(4)]<-40
-idparslist[[3]][6,c(5)]<-41
-idparslist[[3]][6,c(9)]<-42
-idparslist[[3]][6,c(1,2,7,8)]<-0
-idparslist[[3]][7,c(1)]<-43
-idparslist[[3]][7,c(4)]<-44
-idparslist[[3]][7,c(8)]<-45
-idparslist[[3]][7,c(9)]<-46
-idparslist[[3]][7,c(2,3,5,6)]<-0
-idparslist[[3]][8,c(2)]<-47
-idparslist[[3]][8,c(5)]<-48
-idparslist[[3]][8,c(7)]<-49
-idparslist[[3]][8,c(9)]<-50
-idparslist[[3]][8,c(1,3,4,6)]<-0
-idparslist[[3]][9,c(3)]<-51
-idparslist[[3]][9,c(6)]<-52
-idparslist[[3]][9,c(7)]<-53
-idparslist[[3]][9,c(8)]<-54
-idparslist[[3]][9,c(1,2,4,5)]<-0
-diag(idparslist[[3]])<-NA
+idparslist[[3]][1,c(2)] <- 19
+idparslist[[3]][1,c(3)] <- 20
+idparslist[[3]][1,c(4)] <- 21
+idparslist[[3]][1,c(7)] <- 22
+idparslist[[3]][1,c(5,6,8,9)] <- 0
+idparslist[[3]][2,c(1)] <- 23
+idparslist[[3]][2,c(3)] <- 24
+idparslist[[3]][2,c(5)] <- 25
+idparslist[[3]][2,c(8)] <- 26
+idparslist[[3]][2,c(4,6,7,9)] <- 0
+idparslist[[3]][3,c(1)] <- 27
+idparslist[[3]][3,c(2)] <- 28
+idparslist[[3]][3,c(6)] <- 29
+idparslist[[3]][3,c(9)] <- 30
+idparslist[[3]][3,c(4,5,7,8)] <- 0
+idparslist[[3]][4,c(1)] <- 31
+idparslist[[3]][4,c(5)] <- 32
+idparslist[[3]][4,c(6)] <- 33
+idparslist[[3]][4,c(7)] <- 34
+idparslist[[3]][4,c(2,3,8,9)] <- 0
+idparslist[[3]][5,c(2)] <- 35
+idparslist[[3]][5,c(4)] <- 36
+idparslist[[3]][5,c(6)] <- 37
+idparslist[[3]][5,c(8)] <- 38
+idparslist[[3]][5,c(1,3,7,9)] <- 0
+idparslist[[3]][6,c(3)] <- 39
+idparslist[[3]][6,c(4)] <- 40
+idparslist[[3]][6,c(5)] <- 41
+idparslist[[3]][6,c(9)] <- 42
+idparslist[[3]][6,c(1,2,7,8)] <- 0
+idparslist[[3]][7,c(1)] <- 43
+idparslist[[3]][7,c(4)] <- 44
+idparslist[[3]][7,c(8)] <- 45
+idparslist[[3]][7,c(9)] <- 46
+idparslist[[3]][7,c(2,3,5,6)] <- 0
+idparslist[[3]][8,c(2)] <- 47
+idparslist[[3]][8,c(5)] <- 48
+idparslist[[3]][8,c(7)] <- 49
+idparslist[[3]][8,c(9)] <- 50
+idparslist[[3]][8,c(1,3,4,6)] <- 0
+idparslist[[3]][9,c(3)] <- 51
+idparslist[[3]][9,c(6)] <- 52
+idparslist[[3]][9,c(7)] <- 53
+idparslist[[3]][9,c(8)] <- 54
+idparslist[[3]][9,c(1,2,4,5)] <- 0
+diag(idparslist[[3]]) <- NA
 ```
 
 This yields the following data setup: 
@@ -190,7 +188,7 @@ idparslist
 INITPARSOPT: user-supplied values of parameters, a vector of values of lambda, mu, and q that should agree in number with the number of parameters specified in the model. If values are known beforehand, they can be specified as follows for the case of the above defined parameter set, where there are 5 lambda's (two equal), 6 mu's (all free), and q's (all free, but no dual transitions):
 
 ```{r}
-initparsopt<-c(rep(1.2,9), rep(0.1,9), rep(0.25,36))
+initparsopt <- c(rep(1.2,9), rep(0.1,9), rep(0.25,36))
 ```
 
 
@@ -203,7 +201,7 @@ idparslist
 And we want to optimize only speciation rate parameters, while keeping the rest fixed, we specify the following:
 
 ```{r}
-idparsopt<-c(1:9)
+idparsopt <- c(1:9)
 ```
 
 In this case, values must be provided for the extinction parameters and transition rate matrix under parsfix, and their corresponding numbers must be identified under idparsfix.
@@ -212,67 +210,68 @@ Another example:
 
 ```{r}
 #this would optimize speciation and extinction in the above setup
-#idparsopt<-c(1:18)
+#idparsopt <- c(1:18)
 ```
 
 Often what we will want to do is to make all transition rates equal. Or define that all extinctions are the same. We first define our parameter list as follows:
 
 ```{r}
-idparslist[[2]][]<-10
-idparslist[[3]][1,c(2,3,4,7)]<-11
-idparslist[[3]][1,c(5,6,8,9)]<-0
-idparslist[[3]][2,c(1,3,5,8)]<-11
-idparslist[[3]][2,c(4,6,7,9)]<-0
-idparslist[[3]][3,c(1,2,6,9)]<-11
-idparslist[[3]][3,c(4,5,7,8)]<-0
-idparslist[[3]][4,c(1,5,6,7)]<-11
-idparslist[[3]][4,c(2,3,8,9)]<-0
-idparslist[[3]][5,c(2,4,6,8)]<-11
-idparslist[[3]][5,c(1,3,7,9)]<-0
-idparslist[[3]][6,c(3,4,5,9)]<-11
-idparslist[[3]][6,c(1,2,7,8)]<-0
-idparslist[[3]][7,c(1,4,8,9)]<-11
-idparslist[[3]][7,c(2,3,5,6)]<-0
-idparslist[[3]][8,c(2,5,7,9)]<-11
-idparslist[[3]][8,c(1,3,4,6)]<-0
-idparslist[[3]][9,c(3,6,7,8)]<-11
-idparslist[[3]][9,c(1,2,4,5)]<-0
-diag(idparslist[[3]])<-NA
+idparslist[[2]][] <- 10
+idparslist[[3]][1,c(2,3,4,7)] <- 11
+idparslist[[3]][1,c(5,6,8,9)] <- 0
+idparslist[[3]][2,c(1,3,5,8)] <- 11
+idparslist[[3]][2,c(4,6,7,9)] <- 0
+idparslist[[3]][3,c(1,2,6,9)] <- 11
+idparslist[[3]][3,c(4,5,7,8)] <- 0
+idparslist[[3]][4,c(1,5,6,7)] <- 11
+idparslist[[3]][4,c(2,3,8,9)] <- 0
+idparslist[[3]][5,c(2,4,6,8)] <- 11
+idparslist[[3]][5,c(1,3,7,9)] <- 0
+idparslist[[3]][6,c(3,4,5,9)] <- 11
+idparslist[[3]][6,c(1,2,7,8)] <- 0
+idparslist[[3]][7,c(1,4,8,9)] <- 11
+idparslist[[3]][7,c(2,3,5,6)] <- 0
+idparslist[[3]][8,c(2,5,7,9)] <- 11
+idparslist[[3]][8,c(1,3,4,6)] <- 0
+idparslist[[3]][9,c(3,6,7,8)] <- 11
+idparslist[[3]][9,c(1,2,4,5)] <- 0
+diag(idparslist[[3]]) <- NA
 ```
 
 Then we will optimize speciation and the single transition rate:
 
 ```{r}
-idparsopt<-c(1:9,11)
+idparsopt <- c(1:9,11)
 ```
 
 IDPARSFIX: the id's of parameters we want fixed at a certain value (including zero).Notice that 0 in idparslist is just another ID. Parallel to idparsopt, the following statement would fix all parameters associated with extinction rates:
 
 ```{r}
-idparsfix<-c(0,10)
+idparsfix <- c(0,10)
 ```
 
 Notice that if dual transitions were set to zero under idparslist, we should do this here too.
 
 PARSFIX: specifies at which values the parameters identified under idparsfix should be set. Should have the same number of entries as idparsfix (same order too). In this example, the first zero means that all those entries in idparslist with ID 0 will be fixed to zero. The second zero means that all the entries in idparslist with ID 10, will be fixed to 0.0001.
 ```{r}
-parsfix<-c(0,0.0001)
+parsfix <- c(0,0.0001)
 ```
 
-One can also estimate initial lambda and mu values from the tree. A good starting point for q is lambda/5:
+One can also estimate initial lambda and mu values from the tree using a simple birth-death model that does not take into account trait states. Here we do this with the bd_ML function from the DDD package. A good starting point for q is lambda/5:
 
 ```{r}
-startingpoint<-bd_ML(brts = ape::branching.times(phylo_Vign))
-intGuessLamba<-startingpoint$lambda0
-intGuessMu<-startingpoint$mu0
+library(DDD)
+startingpoint <- bd_ML(brts = ape::branching.times(phylo_Vign))
+intGuessLamba <- startingpoint$lambda0
+intGuessMu <- startingpoint$mu0
 #Make sure that the dimensions of initparsopt agree with those of idparslist and idparsopt, especially in the case of the initial guesses for rates supplied to the Q matrix. Rules of thumb are that if n=number of examined states, both intGuessLamba and intGuessMu should be replicated 2n times, and (intGuessLamba/5) should be replicated (2n)2/2 times:
-initparsopt<-c(rep(intGuessLamba,9), rep((intGuessLamba/5),1))
+initparsopt <- c(rep(intGuessLamba,9), rep((intGuessLamba/5),1))
 ```
 COND: conditioning on the state of the root. Set to "maddison_cond" if you want conditioning as done in other -SSE packages, or "proper_cond" if you want to use our new improved conditioning. 
 
 root_state_weight: SecSSe offers to methods to weigh the probabilities of states at the root:"proper_weights" and "maddison_weights". In the accompanying paper you can read the differences between them. 
 
-SAMPLING_FRACTION: include a sampling fraction. Sampling.f always has as many elements as there are examined states, so a SecSSE analysis with 3 states could have the following sampling_fraction=c(0.5,0.25,0.75), in which half of taxa in state 1 are sampled, a quarter in state two, and three quarters in state three. If 100% of known taxa in each state are sampled, sampling_fraction=c(1,1,1). If only an overall value is known (for example, we know we sampled 80% of all taxa, but we do not know how they are distributed across states), we assign this value to each state: sampling_fraction=c(0.8,0.8,0.8).Sampling.f is always placed after the 'cond' statement. 
+SAMPLING_FRACTION: include a sampling fraction. Sampling.f always has as many elements as there are examined states, so a SecSSE analysis with 3 states could have the following sampling_fraction = c(0.5,0.25,0.75), in which half of taxa in state 1 are sampled, a quarter in state two, and three quarters in state three. If 100% of known taxa in each state are sampled, sampling_fraction=c(1,1,1). If only an overall value is known (for example, we know we sampled 80% of all taxa, but we do not know how they are distributed across states), we assign this value to each state: sampling_fraction = c(0.8,0.8,0.8). Sampling.f is always placed after the 'cond' statement. 
 
 TOL: basically, a range of values between which samples in the ML chain will be accepted or not. Typically, the value of tol = c(1e-04, 1e-05, 1e-07) is generally best.
 
@@ -343,25 +342,25 @@ in which '99' is an example value you can use to populate the matrix at first, t
 
 We first declare all values on the diagonal to be 'NA', then we specify values for the 'masterBlock'. The values have a row and column indicator, so that e.g. '[2,7]' refers to position 7 in row 2, or to a transition from 2A to 7A more specifically.
 ```{r}
-diag(masterBlock)<-NA
-masterBlock[1,2]<-6
-masterBlock[1,3]<-7
+diag(masterBlock) <- NA
+masterBlock[1,2] <- 6
+masterBlock[1,3] <- 7
 
-masterBlock[2,1]<-8
-masterBlock[2,3]<-9
+masterBlock[2,1] <- 8
+masterBlock[2,3] <- 9
 
-masterBlock[3,1]<-10
-masterBlock[3,2]<-11
+masterBlock[3,1] <- 10
+masterBlock[3,2] <- 11
 
 ```
 After completing the declaration of the 'masterBlock', we will need to specify whether or not we want the variation in examined states to be exactly the same as in the concealed state (so that e.g. the transition 1A->3A takes the same value as 5A->5C), or if we want the concealed state to have additional variation to account for type I error in transition rates (so that the total amount of transition parameters between concealed states is the same as between examined states, but the values are different). This is done by:
 ```{r}
-diff.conceal<-FALSE
+diff.conceal <- FALSE
 ```
 Finally, we need to make sure the 'masterBlock' is used as a baseline for building the transition matrix in IDPARSLIST:
 ```{r}
 myQ<-q_doubletrans(traits,masterBlock,diff.conceal)
-idparslist[[3]]<-myQ
+idparslist[[3]] <- myQ
 ```
 Which makes our final q matrix look as follows:
 ```{r}
@@ -369,9 +368,9 @@ idparslist[[3]]
 ```
 Matching the amount of variation in rates between the concealed states, yields the following:
 ```{r}
-diff.conceal<-TRUE
-myQ<-q_doubletrans(traits,masterBlock,diff.conceal)
-idparslist[[3]]<-myQ
+diff.conceal <- TRUE
+myQ <- q_doubletrans(traits,masterBlock,diff.conceal)
+idparslist[[3]] <- myQ
 idparslist[[3]]
 ```
 Note that in this case, the number of transition rate parameters doubles compared to the previous example, a change that will need to be applied also to IDPARSOPT and IDPARSFIX.
@@ -385,23 +384,23 @@ In SecSSE, the factors are represented in a function separate from secsse_ml, an
 
 SHAREFACTORS: these are the identifiers of the factors you want to specify. In the above example, we have two factors, one governing transitions from P->S and one from S->P. Transitions in opposite directions are better not fixed to the same multiplicative factor, so that at least two are needed here. In this case these are specified as follows:
 ```{r}
-#shareFactors<-c(.1,.2)
+#shareFactors <- c(.1,.2)
 ```
 INITFACTORS: Since these shared factors need initial parameter estimates, just as other transition parameters in the model do, we need to specify these. The initial guesses are best set to 1, so they behave similar to the parameters they are 'tied' to, unless we have very good evidence (e.g. from a previous run) that these are bigger or smaller:
 ```{r}
-#initFactors<-c(1,1)
+#initFactors <- c(1,1)
 ```
 Aside from setting these two parameters, we need to specify in our rate matrix which rate parameters we want to be governed by which factors. Imagine we have a 3-state matrix, where 1 refers to lobed feet, 2 to semi-palmate and 3 to palmate: 
 ```{r}
-# diag(masterBlock)<-NA
-# masterBlock[1,2]<-6
-# masterBlock[1,3]<-6.1  #factor 1: lobed to palmate
+# diag(masterBlock) <- NA
+# masterBlock[1,2] <- 6
+# masterBlock[1,3] <- 6.1  #factor 1: lobed to palmate
 # 
-# masterBlock[2,1]<-7
-# masterBlock[2,3]<-8
+# masterBlock[2,1] <- 7
+# masterBlock[2,3] <- 8
 # 
-# masterBlock[3,1]<-7.2  #factor 2: palmate to lobed
-# masterBlock[3,2]<-9
+# masterBlock[3,1] <- 7.2  #factor 2: palmate to lobed
+# masterBlock[3,2] <- 9
 ```
 Finally, we run the function secsse_ml_struc instead of secsse_ml, and make sure that both new parameters are included. 
 ```{r}

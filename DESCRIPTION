@@ -1,8 +1,8 @@
 Package: secsse
 Title: Several Examined and Concealed States-Dependent Speciation and
         Extinction
-Version: 1.0.0
-Date: 2019-01-19
+Version: 1.0.3
+Date: 2019-03-13
 License: GPL-3
 Authors@R: c(
  person("Leonel", "Herrera Alsina", email = "leonelhalsina@gmail.com", role = "cre"),
@@ -23,10 +23,10 @@ Encoding: UTF-8
 LazyData: true
 VignetteBuilder: knitr
 RoxygenNote: 6.1.1
-Packaged: 2019-01-19 16:12:13 UTC; rampa
+Packaged: 2019-03-13 10:08:51 UTC; rampa
 Author: Leonel Herrera Alsina [cre],
   Paul van Els [aut],
   Rampal Etienne [aut]
 Maintainer: Leonel Herrera Alsina <leonelhalsina@gmail.com>
 Repository: CRAN
-Date/Publication: 2019-01-30 18:40:06 UTC
+Date/Publication: 2019-03-13 13:10:03 UTC
