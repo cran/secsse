@@ -4,14 +4,34 @@
 \alias{cla_secsse_ml_func_def_pars}
 \title{Maximum likehood estimation for (SecSSE) with parameter as complex functions. Cladogenetic version}
 \usage{
-cla_secsse_ml_func_def_pars(phy, traits, num_concealed_states, idparslist,
-  idparsopt, initparsopt, idfactorsopt, initfactors, idparsfix, parsfix,
-  idparsfuncdefpar, functions_defining_params, cond = "proper_cond",
-  root_state_weight = "proper_weights", sampling_fraction,
-  tol = c(1e-04, 1e-05, 1e-07), maxiter = 1000 *
-  round((1.25)^length(idparsopt)), use_fortran = TRUE,
-  methode = "ode45", optimmethod = "simplex", num_cycles = 1,
-  run_parallel = FALSE, loglik_penalty = 0)
+cla_secsse_ml_func_def_pars(
+  phy,
+  traits,
+  num_concealed_states,
+  idparslist,
+  idparsopt,
+  initparsopt,
+  idfactorsopt,
+  initfactors,
+  idparsfix,
+  parsfix,
+  idparsfuncdefpar,
+  functions_defining_params,
+  cond = "proper_cond",
+  root_state_weight = "proper_weights",
+  sampling_fraction,
+  tol = c(1e-04, 1e-05, 1e-07),
+  maxiter = 1000 * round((1.25)^length(idparsopt)),
+  use_fortran = TRUE,
+  methode = "ode45",
+  optimmethod = "simplex",
+  num_cycles = 1,
+  run_parallel = FALSE,
+  loglik_penalty = 0,
+  is_complete_tree = FALSE,
+  func = "cla_secsse_runmod",
+  verbose = (optimmethod == "subplex")
+)
 }
 \arguments{
 \item{phy}{phylogenetic tree of class phylo, ultrametric, rooted and with branch lengths.}
@@ -59,6 +79,12 @@ cla_secsse_ml_func_def_pars(phy, traits, num_concealed_states, idparslist,
 \item{run_parallel}{should the routine to run in parallel be called? Read note below}
 
 \item{loglik_penalty}{the size of the penalty for all parameters; default is 0 (no penalty)}
+
+\item{is_complete_tree}{whether or not a tree with all its extinct species is provided}
+
+\item{func}{function to be used in solving the ODE system. Currently only for testing purposes.}
+
+\item{verbose}{sets verbose output; default is verbose when optimmethod is 'subplex'}
 }
 \value{
 Parameter estimated and maximum likelihood
@@ -84,7 +110,7 @@ num_concealed_states <- 3
 idparslist <- cla_id_paramPos(traits,num_concealed_states)
 idparslist$lambdas[1,] <- c(1,2,3,1,2,3,1,2,3)
 idparslist[[2]][] <- 4
-masterBlock <- matrix(c(5,6),ncol=3,nrow=3,byrow=TRUE)
+masterBlock <- matrix(c(5,6,5,6,5,6,5,6,5),ncol=3,nrow=3,byrow=TRUE)
 diag(masterBlock) <- NA
 diff.conceal <- FALSE
 idparslist[[3]] <- q_doubletrans(traits,masterBlock,diff.conceal)

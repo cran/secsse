@@ -23,6 +23,9 @@
 #' @param num_cycles number of cycles of the optimization (default is 1).
 #' @param run_parallel should the routine to run in parallel be called? Read note below
 #' @param loglik_penalty the size of the penalty for all parameters; default is 0 (no penalty)
+#' @param is_complete_tree whether or not a tree with all its extinct species is provided
+#' @param func function to be used in solving the ODE system. Currently only for testing purposes.
+#' @param verbose sets verbose output; default is verbose when optimmethod is 'subplex'
 #' @note To run in parallel the following libraries must be loaded under windows: apTreeshape, doparallel and foreach. Under unix/linux, apTreeshape, doparallel, foreach and doMC must be loaded.
 #' @return Parameter estimated and maximum likelihood
 #' @examples
@@ -40,7 +43,7 @@
 #'idparslist <- cla_id_paramPos(traits,num_concealed_states)
 #'idparslist$lambdas[1,] <- c(1,2,3,1,2,3,1,2,3)
 #'idparslist[[2]][] <- 4
-#'masterBlock <- matrix(c(5,6),ncol=3,nrow=3,byrow=TRUE)
+#'masterBlock <- matrix(c(5,6,5,6,5,6,5,6,5),ncol=3,nrow=3,byrow=TRUE)
 #'diag(masterBlock) <- NA
 #'diff.conceal <- FALSE
 #'idparslist[[3]] <- q_doubletrans(traits,masterBlock,diff.conceal)
@@ -112,8 +115,10 @@ cla_secsse_ml_func_def_pars <- function(phy,
                                     optimmethod = 'simplex',
                                     num_cycles = 1,
                                     run_parallel = FALSE,
-                                    loglik_penalty = 0) {
-  
+                                    loglik_penalty = 0,
+                                    is_complete_tree = FALSE,
+                                    func = 'cla_secsse_runmod',
+                                    verbose = (optimmethod == 'subplex')) {
   structure_func <- list()
   structure_func[[1]] <- idparsfuncdefpar
   structure_func[[2]] <- functions_defining_params
@@ -128,7 +133,7 @@ cla_secsse_ml_func_def_pars <- function(phy,
   
   if (is.list(functions_defining_params) == FALSE) {
     stop(
-      "the argument functions_defining_params should be a list of functions. See example and vignette"
+      "The argument functions_defining_params should be a list of functions. See example and vignette"
     )
   }
   
@@ -139,7 +144,7 @@ cla_secsse_ml_func_def_pars <- function(phy,
   }
   
   if (is.matrix(traits)) {
-    cat("you are setting a model where some species had more than one trait state \n")
+    cat("You are setting a model where some species had more than one trait state \n")
   }
   
   if (length(initparsopt) != length(idparsopt)) {
@@ -155,7 +160,7 @@ cla_secsse_ml_func_def_pars <- function(phy,
   }
   
   if (anyDuplicated(c(idparsopt, idparsfix, idparsfuncdefpar)) != 0) {
-    stop("at least one element was asked to be fixed, estimated or a function at the same time")
+    stop("At least one element was asked to be fixed, estimated or a function at the same time")
   }
   
   if (identical(as.numeric(sort(
@@ -171,7 +176,7 @@ cla_secsse_ml_func_def_pars <- function(phy,
   if (anyDuplicated(c(unique(sort(
     as.vector(idparslist[[3]])
   )), idparsfix[which(parsfix == 0)])) != 0) {
-    cat("You set some transitions as impossible to happen", "\n")
+    cat("Note: you set some transitions as impossible to happen.","\n")
   }
   
   idparslist[[1]] <- prepare_full_lambdas(traits,num_concealed_states,idparslist[[1]])
@@ -187,31 +192,31 @@ cla_secsse_ml_func_def_pars <- function(phy,
   trparsopt[which(initparsopt2 == Inf)] <- 1
   trparsfix <- parsfix / (1 + parsfix)
   trparsfix[which(parsfix == Inf)] <- 1
+
+  mus <- calc_mus(is_complete_tree, idparslist, idparsfix, parsfix, idparsopt, initparsopt)
   
   optimpars <- c(tol, maxiter)
 
-  if (.Platform$OS.type == "windows" && run_parallel == TRUE) {
-    cl <- parallel::makeCluster(2)
-    doParallel::registerDoParallel(cl)
-    setting_calculation <- 
-      build_initStates_time_bigtree(phy, traits, num_concealed_states, sampling_fraction)
+  if(run_parallel == TRUE){
+    setting_calculation <- build_initStates_time_bigtree(phy, traits, num_concealed_states, sampling_fraction, is_complete_tree, mus)
     setting_parallel <- 1
-    on.exit(parallel::stopCluster(cl))
-  }
-  
-  if (.Platform$OS.type == "unix" && run_parallel == TRUE) {
-    doMC::registerDoMC(2)
-    setting_calculation <- 
-      build_initStates_time_bigtree(phy, traits, num_concealed_states, sampling_fraction)
-    setting_parallel <- 1
-  }
-  
-  if (run_parallel == FALSE) {
-    setting_calculation <- 
-      build_initStates_time(phy, traits, num_concealed_states, sampling_fraction)
+    if(.Platform$OS.type == "windows"){
+      cl <- parallel::makeCluster(2)
+      doParallel::registerDoParallel(cl)
+      # pass libPath to workers
+      # see https://stackoverflow.com/questions/6412459/how-to-specify-the-location-of-r-packages-in-foreach-packages-pkg-do
+      # https://gitlab.com/CarlBrunius/MUVR/-/issues/11
+      parallel::clusterCall(cl, function(x) .libPaths(x), .libPaths())
+      on.exit(parallel::stopCluster(cl))
+    }
+    if(.Platform$OS.type == "unix"){
+      doMC::registerDoMC(2)
+    } 
+  } else {
+    setting_calculation <- build_initStates_time(phy,traits,num_concealed_states,sampling_fraction, is_complete_tree, mus)
     setting_parallel <- NULL
   }
-  
+
   initloglik <- 
     secsse_loglik_choosepar(
       trparsopt = trparsopt,
@@ -233,7 +238,10 @@ cla_secsse_ml_func_def_pars <- function(phy,
       run_parallel = run_parallel,
       setting_parallel = setting_parallel,
       see_ancestral_states = see_ancestral_states,
-      loglik_penalty = loglik_penalty
+      loglik_penalty = loglik_penalty,
+      is_complete_tree = is_complete_tree,
+      func = func,
+      verbose = verbose
     )
   cat("The loglikelihood for the initial parameter values is",
       initloglik,
@@ -246,7 +254,6 @@ cla_secsse_ml_func_def_pars <- function(phy,
   } else {
     cat("Optimizing the likelihood - this may take a while.", "\n")
     utils::flush.console()
-    cat(setting_parallel, "\n")
     out <- 
       DDD::optimizer(
         optimmethod = optimmethod,
@@ -271,7 +278,10 @@ cla_secsse_ml_func_def_pars <- function(phy,
         setting_parallel = setting_parallel,
         see_ancestral_states = see_ancestral_states,
         num_cycles = num_cycles,
-        loglik_penalty = loglik_penalty
+        loglik_penalty = loglik_penalty,
+        is_complete_tree = is_complete_tree,
+        func = func,
+        verbose = verbose
       )
     if (out$conv != 0)
     {

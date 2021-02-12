@@ -4,14 +4,34 @@
 \alias{secsse_ml_func_def_pars}
 \title{Maximum likehood estimation for (SecSSE) with parameter as complex functions.}
 \usage{
-secsse_ml_func_def_pars(phy, traits, num_concealed_states, idparslist,
-  idparsopt, initparsopt, idfactorsopt, initfactors, idparsfix, parsfix,
-  idparsfuncdefpar, functions_defining_params, cond = "proper_cond",
-  root_state_weight = "proper_weights", sampling_fraction,
-  tol = c(1e-04, 1e-05, 1e-07), maxiter = 1000 *
-  round((1.25)^length(idparsopt)), use_fortran = TRUE,
-  methode = "ode45", optimmethod = "simplex", num_cycles = 1,
-  run_parallel = FALSE, loglik_penalty = 0)
+secsse_ml_func_def_pars(
+  phy,
+  traits,
+  num_concealed_states,
+  idparslist,
+  idparsopt,
+  initparsopt,
+  idfactorsopt,
+  initfactors,
+  idparsfix,
+  parsfix,
+  idparsfuncdefpar,
+  functions_defining_params,
+  cond = "proper_cond",
+  root_state_weight = "proper_weights",
+  sampling_fraction,
+  tol = c(1e-04, 1e-05, 1e-07),
+  maxiter = 1000 * round((1.25)^length(idparsopt)),
+  use_fortran = TRUE,
+  methode = "ode45",
+  optimmethod = "simplex",
+  num_cycles = 1,
+  run_parallel = FALSE,
+  loglik_penalty = 0,
+  is_complete_tree = FALSE,
+  func = ifelse(is_complete_tree, "secsse_runmod_ct", ifelse(use_fortran == FALSE,
+    secsse_loglik_rhs, "secsse_runmod2"))
+)
 }
 \arguments{
 \item{phy}{phylogenetic tree of class phylo, ultrametric, rooted and with branch lengths.}
@@ -59,6 +79,10 @@ secsse_ml_func_def_pars(phy, traits, num_concealed_states, idparslist,
 \item{run_parallel}{should the routine to run in parallel be called? Read note below}
 
 \item{loglik_penalty}{the size of the penalty for all parameters; default is 0 (no penalty)}
+
+\item{is_complete_tree}{whether or not a tree with all its extinct species is provided}
+
+\item{func}{function to be used in solving the ODE system. Currently only for testing purposes.}
 }
 \value{
 Parameter estimated and maximum likelihood
@@ -130,7 +154,7 @@ sampling_fraction <- c(1,1,1)
 #                               initparsopt, idfactorsopt, initfactors, idparsfix, parsfix,
 #                               idparsfuncdefpar, functions_defining_params, cond,
 #                               root_state_weight, sampling_fraction, tol, maxiter, use_fortran,
-#                               methode, optimmethod, num_cycles = 1,run_parallel)
+#                               methode, optimmethod, num_cycles = 1, run_parallel)
 
 # ML -136.5796
 }

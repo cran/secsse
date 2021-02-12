@@ -28,7 +28,8 @@ cla_calThruNodes <- function(
   parameter,
   use_fortran,
   methode,
-  phy
+  phy,
+  func
 ){
   lambdas <- parameter[[1]]
   mus <- parameter[[2]]
@@ -57,13 +58,22 @@ cla_calThruNodes <- function(
     ##  To make the calculation in both lineages
     
     if(use_fortran == FALSE){
-       nodeMN <- deSolve::ode(y = y, func = cla_secsse_loglik_rhs,
-                           times = c(0,timeInte), parms = parameter,rtol = reltol, atol = abstol,
-                           hmax = NULL,method = methode)
-    } else {
-       nodeMN <- ode_FORTRAN(y = y, func = "cla_secsse_runmod",
-                              times = c(0,timeInte), parms = parameter, rtol = reltol, atol = abstol,
+       nodeMN <- deSolve::ode(y = y,
+                              func = cla_secsse_loglik_rhs,
+                              times = c(0,timeInte),
+                              parms = parameter,
+                              rtol = reltol,
+                              atol = abstol,
+                              hmax = NULL,
                               method = methode)
+    } else {
+       nodeMN <- ode_FORTRAN(y = y,
+                             func = func,
+                             times = c(0,timeInte),
+                             parms = parameter,
+                             rtol = reltol,
+                             atol = abstol,
+                             method = methode)
     }
     if(desIndex == 1){
       nodeN <- nodeMN
@@ -114,8 +124,8 @@ cla_doParalThing <- function(take_ancesSub,
                          parameter,
                          use_fortran,
                          methode,
-                         phy
-                         
+                         phy,
+                         func
 ){
   #cl <- makeCluster(2)
   #registerDoParallel(cl)
@@ -138,10 +148,7 @@ cla_doParalThing <- function(take_ancesSub,
                                  .export = c(
                                    "cla_secsse_loglik",
                                    "ode_FORTRAN",
-                                   #"phy",
-                                   #"methode",
                                    "cla_calThruNodes"
-                                   #,"use_fortran")) %dopar% {
                                    )) %dopar% { 
                                      ancesSub <- take_ancesSub[[ii]]
                                      for(i in 1:length(ancesSub)){
@@ -153,7 +160,8 @@ cla_doParalThing <- function(take_ancesSub,
                                                           parameter,
                                                           use_fortran = use_fortran,
                                                           methode = methode,
-                                                          phy = phy)
+                                                          phy = phy,
+                                                          func = func)
                                        loglik <- calcul$loglik
                                        states <- calcul$states
                                      }
@@ -162,8 +170,7 @@ cla_doParalThing <- function(take_ancesSub,
   return(statesNEW)
 }
 
-#' Logikelihood calculation 
-#'   for the cla_SecSSE model given a set of parameters and data
+#' Logikelihood calculation for the cla_SecSSE model given a set of parameters and data
 #' @title Likelihood for SecSSE model
 #' @param parameter list where the first is a table where lambdas across different modes of speciation are shown, the second mus and the third transition rates.
 #' @param phy phylogenetic tree of class phylo, ultrametric, fully-resolved, rooted and with branch lengths.
@@ -179,6 +186,8 @@ cla_doParalThing <- function(take_ancesSub,
 #' @param setting_parallel argument used internally to set a parallel calculation. It should be left blank (default : setting_parallel = NULL)
 #' @param see_ancestral_states should the ancestral states be shown? Deafault FALSE
 #' @param loglik_penalty the size of the penalty for all parameters; default is 0 (no penalty)
+#' @param is_complete_tree whether or not a tree with all its extinct species is provided
+#' @param func function to be used in solving the ODE system. Currently only for testing purposes.
 #' @note To run in parallel it is needed to load the following libraries when windows: apTreeshape, doparallel and foreach. When unix, it requires: apTreeshape, doparallel, foreach and doMC
 #' @return The loglikelihood of the data given the parameters
 #' @examples
@@ -238,9 +247,17 @@ cla_secsse_loglik <- function(parameter,
                               sampling_fraction,
                               run_parallel = FALSE,
                               setting_calculation = NULL,
-                              setting_parallel= NULL,
+                              setting_parallel = NULL,
                               see_ancestral_states = FALSE,
-                              loglik_penalty = 0){
+                              loglik_penalty = 0,
+                              is_complete_tree = FALSE,
+                              func = ifelse(is_complete_tree,
+                                            "cla_secsse_runmod_ct",
+                                            ifelse(use_fortran == FALSE,
+                                                   cla_secsse_loglik_rhs,
+                                                   "cla_secsse_runmod")
+                                            )
+                              ){
   lambdas <- parameter[[1]]
   mus <- parameter[[2]]
   parameter[[3]][is.na(parameter[[3]])] <- 0
@@ -248,9 +265,9 @@ cla_secsse_loglik <- function(parameter,
   
   if(run_parallel == TRUE){ 
     if(is.null(setting_calculation)){
-      check_input(traits,phy,sampling_fraction,root_state_weight)
+      check_input(traits,phy,sampling_fraction,root_state_weight,is_complete_tree)
       setting_calculation <- 
-        build_initStates_time_bigtree(phy, traits, num_concealed_states, sampling_fraction)
+        build_initStates_time_bigtree(phy, traits, num_concealed_states, sampling_fraction, is_complete_tree, mus)
     }
     
     states <- setting_calculation$states
@@ -272,10 +289,19 @@ cla_secsse_loglik <- function(parameter,
     take_ancesSub <- list(ancesSub1, ancesSub2)
     
     if(is.null(setting_parallel)){
-      cl <- parallel::makeCluster(2)
-      doParallel::registerDoParallel(cl)
+      if(.Platform$OS.type == "windows"){
+        cl <- parallel::makeCluster(2)
+        doParallel::registerDoParallel(cl)
+        # pass libPath to workers
+        # see https://stackoverflow.com/questions/6412459/how-to-specify-the-location-of-r-packages-in-foreach-packages-pkg-do
+        # https://gitlab.com/CarlBrunius/MUVR/-/issues/11
+        parallel::clusterCall(cl, function(x) .libPaths(x), .libPaths())
+        on.exit(parallel::stopCluster(cl))
+      }
+      if(.Platform$OS.type == "unix"){
+        doMC::registerDoMC(2)
+      } 
     }
-    
     statesNEW <- cla_doParalThing(take_ancesSub,
                               states,
                               loglik,
@@ -283,7 +309,8 @@ cla_secsse_loglik <- function(parameter,
                               parameter,
                               use_fortran,
                               methode,
-                              phy
+                              phy,
+                              func
     )
     
     comingfromSub1 <- statesNEW[[1]][[1]]
@@ -300,15 +327,15 @@ cla_secsse_loglik <- function(parameter,
     
     for(i in 1:length(ancesRest)){
       calcul <- 
-        cla_calThruNodes(ancesRest[i], states, loglik, forTime, parameter, use_fortran = use_fortran,methode = methode, phy = phy)
+        cla_calThruNodes(ancesRest[i], states, loglik, forTime, parameter, use_fortran = use_fortran,methode = methode, phy = phy, func = func)
       states <- calcul$states
       loglik <- calcul$loglik
       
     }
   } else {
     if(is.null(setting_calculation)){
-      check_input(traits,phy,sampling_fraction,root_state_weight)
-      setting_calculation <- build_initStates_time(phy,traits,num_concealed_states,sampling_fraction)
+      check_input(traits,phy,sampling_fraction,root_state_weight,is_complete_tree)
+      setting_calculation <- build_initStates_time(phy,traits,num_concealed_states,sampling_fraction,is_complete_tree,mus)
     } 
     
     states <- setting_calculation$states
@@ -327,7 +354,15 @@ cla_secsse_loglik <- function(parameter,
     d <- ncol(states)/2
     
     for(i in 1:length(ances)){
-      calcul <- cla_calThruNodes(ances[i],states,loglik,forTime,parameter,use_fortran = use_fortran,methode = methode,phy = phy)
+      calcul <- cla_calThruNodes(ances[i],
+                                 states,
+                                 loglik,
+                                 forTime,
+                                 parameter,
+                                 use_fortran = use_fortran,
+                                 methode = methode,
+                                 phy = phy,
+                                 func = func)
       states <- calcul$states
       loglik <- calcul$loglik
       nodeN <- calcul$nodeN
@@ -340,7 +375,7 @@ cla_secsse_loglik <- function(parameter,
   ## At the root
   
   mergeBranch2 <- (mergeBranch)
-  if(class(root_state_weight) == "numeric"){
+  if(is.numeric(root_state_weight)){
     giveWeights <- root_state_weight/num_concealed_states
     weightStates <- rep(giveWeights,num_concealed_states)
     

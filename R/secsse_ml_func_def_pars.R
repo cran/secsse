@@ -1,4 +1,3 @@
-
 #' Maximum likehood estimation under Several examined and concealed States-dependent Speciation and Extinction (SecSSE) where some paramaters are functions of other parameters and/or factors.
 #' @title Maximum likehood estimation for (SecSSE) with parameter as complex functions.
 #' @param phy phylogenetic tree of class phylo, ultrametric, rooted and with branch lengths.
@@ -24,6 +23,8 @@
 #' @param num_cycles number of cycles of the optimization (default is 1).
 #' @param run_parallel should the routine to run in parallel be called? Read note below
 #' @param loglik_penalty the size of the penalty for all parameters; default is 0 (no penalty)
+#' @param is_complete_tree whether or not a tree with all its extinct species is provided
+#' @param func function to be used in solving the ODE system. Currently only for testing purposes.
 #' @note To run in parallel it is needed to load the following libraries when windows: apTreeshape, doparallel and foreach. When unix, it requires: apTreeshape, doparallel, foreach and doMC
 #' @return Parameter estimated and maximum likelihood
 #' @examples
@@ -88,7 +89,7 @@
 #'#                               initparsopt, idfactorsopt, initfactors, idparsfix, parsfix,
 #'#                               idparsfuncdefpar, functions_defining_params, cond,
 #'#                               root_state_weight, sampling_fraction, tol, maxiter, use_fortran,
-#'#                               methode, optimmethod, num_cycles = 1,run_parallel)
+#'#                               methode, optimmethod, num_cycles = 1, run_parallel)
 #'
 #'# ML -136.5796
 #' @export
@@ -115,7 +116,15 @@ secsse_ml_func_def_pars <- function(phy,
                                     optimmethod = 'simplex',
                                     num_cycles = 1,
                                     run_parallel = FALSE,
-                                    loglik_penalty = 0) {
+                                    loglik_penalty = 0,
+                                    is_complete_tree = FALSE,
+                                    func = ifelse(is_complete_tree,
+                                                  "secsse_runmod_ct",
+                                                  ifelse(use_fortran == FALSE,
+                                                         secsse_loglik_rhs,
+                                                         "secsse_runmod2")
+                                    )
+) {
   
   structure_func <- list()
   structure_func[[1]] <- idparsfuncdefpar
@@ -193,34 +202,33 @@ secsse_ml_func_def_pars <- function(phy,
   trparsfix <- parsfix / (1 + parsfix)
   trparsfix[which(parsfix == Inf)] <- 1
   
+  mus <- calc_mus(is_complete_tree, idparslist, idparsfix, parsfix, idparsopt, initparsopt)
   
   optimpars <- c(tol, maxiter)
-  
-  
-  
-  if (.Platform$OS.type == "windows" && run_parallel == TRUE) {
-    cl <- parallel::makeCluster(2)
-    doParallel::registerDoParallel(cl)
+
+  if(run_parallel == TRUE){
     setting_calculation <-
-      build_initStates_time_bigtree(phy, traits, num_concealed_states, sampling_fraction)
+      build_initStates_time_bigtree(phy, traits, num_concealed_states, sampling_fraction, is_complete_tree, mus)
     setting_parallel <- 1
-    on.exit(parallel::stopCluster(cl))
-  }
-  
-  if (.Platform$OS.type == "unix" && run_parallel == TRUE) {
-    doMC::registerDoMC(2)
+    if (.Platform$OS.type == "windows") {
+      cl <- parallel::makeCluster(2)
+      doParallel::registerDoParallel(cl)
+      # pass libPath to workers
+      # see https://stackoverflow.com/questions/6412459/how-to-specify-the-location-of-r-packages-in-foreach-packages-pkg-do
+      # https://gitlab.com/CarlBrunius/MUVR/-/issues/11
+      parallel::clusterCall(cl, function(x) .libPaths(x), .libPaths())
+      on.exit(parallel::stopCluster(cl))
+    }
+    if (.Platform$OS.type == "unix") {
+      doMC::registerDoMC(2)
+    }
+  } else {
     setting_calculation <-
-      build_initStates_time_bigtree(phy, traits, num_concealed_states, sampling_fraction)
-    setting_parallel <- 1
-  }
-  
-  if (run_parallel == FALSE) {
-    setting_calculation <-
-      build_initStates_time(phy, traits, num_concealed_states, sampling_fraction)
+      build_initStates_time(phy, traits, num_concealed_states, sampling_fraction, is_complete_tree, mus)
     setting_parallel <- NULL
   }
   
-  
+  if(optimmethod == 'subplex') {verbose <- TRUE} else {verbose <- FALSE}
   initloglik <-
     secsse_loglik_choosepar(
       trparsopt = trparsopt,
@@ -243,7 +251,9 @@ secsse_ml_func_def_pars <- function(phy,
       run_parallel = run_parallel,
       setting_parallel = setting_parallel,
       see_ancestral_states = see_ancestral_states,
-      loglik_penalty = loglik_penalty
+      loglik_penalty = loglik_penalty,
+      func = func,
+      verbose = verbose
     )
   cat("The loglikelihood for the initial parameter values is",
       initloglik,
@@ -281,7 +291,9 @@ secsse_ml_func_def_pars <- function(phy,
         setting_parallel = setting_parallel,
         see_ancestral_states = see_ancestral_states,
         num_cycles = num_cycles,
-        loglik_penalty = loglik_penalty
+        loglik_penalty = loglik_penalty,
+        func = func,
+        verbose = verbose
       )
     if (out$conv != 0)
     {

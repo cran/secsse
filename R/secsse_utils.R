@@ -5,11 +5,10 @@
 #' @param num_concealed_states number of concealed states, generally equivalent to number of examined states.
 #' @return A list that includes the ids of the parameters for ML analysis. 
 #' @examples
-#'traits <- sample(c(0,1,2), 45,replace = TRUE) #get some traits
-#'num_concealed_states <- 3 
-#'param_posit <- id_paramPos(traits,num_concealed_states)
+#' traits <- sample(c(0,1,2), 45,replace = TRUE) #get some traits
+#' num_concealed_states <- 3 
+#' param_posit <- id_paramPos(traits,num_concealed_states)
 #' @export
-
 id_paramPos <- function(traits,num_concealed_states){
   idparslist <- list()
   if(is.matrix(traits)){
@@ -271,7 +270,7 @@ cla_id_paramPos <- function(traits,num_concealed_states){
 #' @param traits vector with trait states, order of states must be the same as tree tips, for help, see vignette.
 #' @param num_concealed_states number of concealed states, generally equivalent to number of examined states.
 #' @param lambd_and_modeSpe a matrix with the 4 models of speciation possible.
-#' @return A list of lambdas, its lenght would be the same than the number of trait states * num_concealed_states.. 
+#' @return A list of lambdas, its length would be the same than the number of trait states * num_concealed_states.. 
 #' @export
 
 prepare_full_lambdas <- function(traits,
@@ -331,4 +330,15 @@ penalty <- function(pars,loglik_penalty = 0)
 {
   pars <- unlist(unlist(pars))
   return(loglik_penalty * sum(pars^2)/(2 * length(pars)))
+}
+
+calc_mus <- function(is_complete_tree, idparslist, idparsfix, parsfix, idparsopt, initparsopt) {
+  mus <- NULL
+  if(is_complete_tree) {
+    mus <- rep(NA,length(idparslist[[2]]))
+    for(i in 1:length(idparslist[[2]])) {
+      mus[i] <- c(parsfix[which(idparsfix == idparslist[[2]][i])],initparsopt[which(idparsopt == idparslist[[2]][i])])
+    }
+  }
+  return(mus)
 }

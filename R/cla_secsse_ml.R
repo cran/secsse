@@ -97,6 +97,9 @@
 #' @param num_cycles number of cycles of the optimization (default is 1).
 #' @param run_parallel should the routine to run in parallel be called?
 #' @param loglik_penalty the size of the penalty for all parameters; default is 0 (no penalty)
+#' @param is_complete_tree whether or not a tree with all its extinct species is provided
+#' @param func function to be used in solving the ODE system. Currently only for testing purposes.
+#' @param verbose sets verbose output; default is verbose when optimmethod is 'submplex'
 #' @note To run in parallel it is needed to load the following libraries when windows: apTreeshape, doparallel and foreach. When unix, it requires: apTreeshape, doparallel, foreach and doMC
 #' @return Parameter estimated and maximum likelihood
 #' @examples
@@ -177,10 +180,13 @@ cla_secsse_ml <- function(
   optimmethod = 'simplex',
   num_cycles = 1,
   run_parallel = FALSE,
-  loglik_penalty = 0
+  loglik_penalty = 0,
+  is_complete_tree = FALSE,
+  func = 'cla_secsse_runmod',
+  verbose = (optimmethod == 'subplex')
 ){
   
- ## check_input(traits,phy,sampling_fraction,root_state_weight)##################
+ ## check_input(traits,phy,sampling_fraction,root_state_weight,is_complete_tree)##################
   structure_func <- NULL
   if(is.matrix(traits)){
     cat("you are setting a model where some species have more than one trait state \n")
@@ -203,44 +209,67 @@ cla_secsse_ml <- function(
   }
   
   if(anyDuplicated(c(unique(sort(as.vector(idparslist[[3]]))),idparsfix[which(parsfix==0)]))!=0){
-    cat("You set some transitions as impossible to happen","\n")
+    cat("Note: you set some transitions as impossible to happen.","\n")
   }
   
-  if(class(idparslist[[1]]) == "matrix"){ ## it is a tailor case otherwise
+  if(is.matrix(idparslist[[1]])){ ## it is a tailor case otherwise
   idparslist[[1]] <- prepare_full_lambdas(traits,num_concealed_states,idparslist[[1]])
   }
 
   see_ancestral_states <- FALSE 
   
   #options(warn=-1)
-  cat("Calculating the likelihood for the initial parameters.","\n")
+  cat("Calculating the likelihood for the initial parameters ...","\n")
   utils::flush.console()
   trparsopt <- initparsopt/(1 + initparsopt)
   trparsopt[which(initparsopt == Inf)] <- 1
   trparsfix <- parsfix/(1 + parsfix)
   trparsfix[which(parsfix == Inf)] <- 1
+  mus <- calc_mus(is_complete_tree, idparslist, idparsfix, parsfix, idparsopt, initparsopt)
   optimpars <- c(tol,maxiter)
 
-  if(.Platform$OS.type == "windows" && run_parallel == TRUE){
-    cl <- parallel::makeCluster(2)
-    doParallel::registerDoParallel(cl)
-    setting_calculation <- build_initStates_time_bigtree(phy, traits, num_concealed_states, sampling_fraction)
+  if(run_parallel == TRUE){
+    setting_calculation <- build_initStates_time_bigtree(phy, traits, num_concealed_states, sampling_fraction, is_complete_tree, mus)
     setting_parallel <- 1
-    on.exit(parallel::stopCluster(cl))
-  }
-  
-  if(.Platform$OS.type == "unix" && run_parallel == TRUE){
-    doMC::registerDoMC(2)
-    setting_calculation <- build_initStates_time_bigtree(phy, traits, num_concealed_states, sampling_fraction)
-    setting_parallel <- 1
-  } 
-  
-  if(run_parallel == FALSE){
-    setting_calculation <- build_initStates_time(phy,traits,num_concealed_states,sampling_fraction)
+    if(.Platform$OS.type == "windows"){
+      cl <- parallel::makeCluster(2)
+      doParallel::registerDoParallel(cl)
+      # pass libPath to workers
+      # see https://stackoverflow.com/questions/6412459/how-to-specify-the-location-of-r-packages-in-foreach-packages-pkg-do
+      # https://gitlab.com/CarlBrunius/MUVR/-/issues/11
+      parallel::clusterCall(cl, function(x) .libPaths(x), .libPaths())
+      on.exit(parallel::stopCluster(cl))
+    }
+    if(.Platform$OS.type == "unix"){
+      doMC::registerDoMC(2)
+    } 
+  } else {
+    setting_calculation <- build_initStates_time(phy,traits,num_concealed_states,sampling_fraction, is_complete_tree, mus)
     setting_parallel <- NULL
   }
-  
-  initloglik <- secsse_loglik_choosepar(trparsopt = trparsopt,trparsfix = trparsfix,idparsopt = idparsopt,idparsfix = idparsfix,idparslist = idparslist, structure_func = structure_func,phy = phy, traits = traits,num_concealed_states=num_concealed_states,use_fortran=use_fortran,methode = methode,cond=cond,root_state_weight=root_state_weight,sampling_fraction=sampling_fraction,setting_calculation=setting_calculation,run_parallel=run_parallel,setting_parallel=setting_parallel,see_ancestral_states = see_ancestral_states,loglik_penalty = loglik_penalty)
+
+  initloglik <- secsse_loglik_choosepar(trparsopt = trparsopt,
+                                        trparsfix = trparsfix,
+                                        idparsopt = idparsopt,
+                                        idparsfix = idparsfix,
+                                        idparslist = idparslist,
+                                        structure_func = structure_func,
+                                        phy = phy,
+                                        traits = traits,
+                                        num_concealed_states = num_concealed_states,
+                                        use_fortran = use_fortran,
+                                        methode = methode,
+                                        cond = cond,
+                                        root_state_weight = root_state_weight,
+                                        sampling_fraction = sampling_fraction,
+                                        setting_calculation = setting_calculation,
+                                        run_parallel = run_parallel,
+                                        setting_parallel = setting_parallel,
+                                        see_ancestral_states = see_ancestral_states,
+                                        loglik_penalty = loglik_penalty,
+                                        is_complete_tree = is_complete_tree,
+                                        func = func,
+                                        verbose = verbose)
   cat("The loglikelihood for the initial parameter values is",initloglik,"\n")
   if(initloglik == -Inf)
   {
@@ -248,8 +277,32 @@ cla_secsse_ml <- function(
   } else {
     cat("Optimizing the likelihood - this may take a while.","\n")
     utils::flush.console()
-    cat(setting_parallel,"\n")
-    out <- DDD::optimizer(optimmethod = optimmethod,optimpars = optimpars,fun = secsse_loglik_choosepar,trparsopt = trparsopt,idparsopt = idparsopt,trparsfix = trparsfix,idparsfix = idparsfix,idparslist = idparslist,structure_func = structure_func,phy = phy, traits = traits,num_concealed_states=num_concealed_states,use_fortran=use_fortran,methode = methode,cond=cond,root_state_weight=root_state_weight,sampling_fraction=sampling_fraction,setting_calculation=setting_calculation,run_parallel=run_parallel,setting_parallel=setting_parallel,see_ancestral_states = see_ancestral_states, num_cycles = num_cycles, loglik_penalty = loglik_penalty)
+    out <- DDD::optimizer(optimmethod = optimmethod,
+                          optimpars = optimpars,
+                          fun = secsse_loglik_choosepar,
+                          trparsopt = trparsopt,
+                          idparsopt = idparsopt,
+                          trparsfix = trparsfix,
+                          idparsfix = idparsfix,
+                          idparslist = idparslist,
+                          structure_func = structure_func,
+                          phy = phy,
+                          traits = traits,
+                          num_concealed_states = num_concealed_states,
+                          use_fortran = use_fortran,
+                          methode = methode,
+                          cond = cond,
+                          root_state_weight = root_state_weight,
+                          sampling_fraction = sampling_fraction,
+                          setting_calculation = setting_calculation,
+                          run_parallel = run_parallel,
+                          setting_parallel = setting_parallel,
+                          see_ancestral_states = see_ancestral_states,
+                          num_cycles = num_cycles,
+                          loglik_penalty = loglik_penalty,
+                          is_complete_tree = is_complete_tree,
+                          func = func,
+                          verbose = verbose)
     if(out$conv != 0)
     {
       stop("Optimization has not converged. Try again with different initial values.\n")
