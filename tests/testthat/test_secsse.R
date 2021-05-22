@@ -255,10 +255,10 @@ test_that("trying a short ML search: secsse_ml & parallel procedure", {
   diff.conceal <- FALSE
   idparslist[[3]] <- q_doubletrans(traits,masterBlock,diff.conceal)
   startingpoint <- DDD::bd_ML(brts = ape::branching.times(phylotree))
-  intGuessLamba <- startingpoint$lambda0
+  intGuessLambda <- startingpoint$lambda0
   intGuessMu <- startingpoint$mu0
   idparsopt <- c(1,2,3)
-  initparsopt <- c(rep(intGuessLamba,3))
+  initparsopt <- c(rep(intGuessLambda,3))
   idparsfix <- c(0,4,5)
   parsfix <- c(0,0,0.1)
   tol <- c(1e-04, 1e-05, 1e-07)
@@ -300,7 +300,7 @@ test_that("trying a short ML search: secsse_ml_func_def_pars", {
   phylotree <- ape::read.tree(file="",parenthesis)
   traits <- c(2, 0, 1, 0, 2, 0, 1, 2, 2, 0)
   startingpoint <- DDD::bd_ML(brts = ape::branching.times(phylotree))
-  intGuessLamba <- startingpoint$lambda0
+  intGuessLambda <- startingpoint$lambda0
   intGuessMu <- startingpoint$mu0
   num_concealed_states <- 3
   idparslist <- id_paramPos(traits, num_concealed_states)
@@ -313,7 +313,7 @@ test_that("trying a short ML search: secsse_ml_func_def_pars", {
   idparsfuncdefpar <- c(3)
   idparsopt <- c(1,4)
   idparsfix <- c(0,2)
-  initparsopt <- c(rep(intGuessLamba,1),intGuessLamba/5)
+  initparsopt <- c(rep(intGuessLambda,1),intGuessLambda/5)
   parsfix <- c(0,5)
   idfactorsopt <- 1
   initfactors <- 1
@@ -371,10 +371,10 @@ test_that("trying a short ML search: cla_secsse", {
   diff.conceal <- FALSE
   idparslist[[3]] <- q_doubletrans(traits,masterBlock,diff.conceal)
   startingpoint <- DDD::bd_ML(brts = ape::branching.times(phylotree))
-  intGuessLamba <- startingpoint$lambda0
+  intGuessLambda <- startingpoint$lambda0
   intGuessMu <- startingpoint$mu0
   idparsopt <- c(1)
-  initparsopt <- c(rep(intGuessLamba,1))
+  initparsopt <- c(rep(intGuessLambda,1))
   idparsfix <- c(0,4,5)
   parsfix <- c(0,0,0.01)
   tol <- c(1e-04, 1e-05, 1e-07)
@@ -444,7 +444,7 @@ test_that("trying a short ML search: cla_secsse", {
   diff.conceal <- FALSE
   idparslist[[3]] <- q_doubletrans(traits,masterBlock,diff.conceal)
   startingpoint <- DDD::bd_ML(brts = ape::branching.times(phylotree))
-  intGuessLamba <- startingpoint$lambda0
+  intGuessLambda <- startingpoint$lambda0
   
   model <- cla_secsse_ml(
     phy = phylotree,
@@ -452,7 +452,7 @@ test_that("trying a short ML search: cla_secsse", {
     num_concealed_states = num_concealed_states,
     idparslist = idparslist,
     idparsopt = c(1),
-    initparsopt = intGuessLamba,
+    initparsopt = intGuessLambda,
     idparsfix = c(0,4,5),
     parsfix = c(0,0,0.01),
     cond = "proper_cond",
@@ -562,7 +562,7 @@ test_that("the loglik for the complete tree", {
                                               sampling_fraction = sampling_fraction,
                                               is_complete_tree = TRUE,
                                               func = "secsse_runmod_ct"))
-  testthat::expect_equal(loglik5,-298.3583,tolerance = 1E-4)
+  testthat::expect_equal(loglik5,-312.7751043,tolerance = 1E-4)
   
   lambdas <- list()
   for(i in 1:4) {
@@ -790,5 +790,5 @@ test_that("the loglik for the complete tree under cla_secsse", {
                                       see_ancestral_states = FALSE,
                                       loglik_penalty = 0,
                                       is_complete_tree = TRUE)
-  testthat::expect_equal(secsse_cla_LL6,-541.6825,tol = 1E-4)
+  testthat::expect_equal(secsse_cla_LL6,-572.003975,tol = 1E-4)
 })
