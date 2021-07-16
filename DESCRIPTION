@@ -2,8 +2,8 @@ Package: secsse
 Type: Package
 Title: Several Examined and Concealed States-Dependent Speciation and
         Extinction
-Version: 2.1.5
-Date: 2021-05-25
+Version: 2.1.7
+Date: 2021-07-13
 License: GPL-3
 Authors@R: c(
  person(given = "Leonel",
@@ -33,10 +33,10 @@ Encoding: UTF-8
 LazyData: true
 VignetteBuilder: knitr
 RoxygenNote: 7.1.1
-Packaged: 2021-05-25 12:47:28 UTC; rampa
+Packaged: 2021-07-14 07:44:52 UTC; rampa
 Author: Leonel Herrera Alsina [aut],
   Paul van Els [aut],
   Rampal S. Etienne [cre, aut] (<https://orcid.org/0000-0003-2142-7612>)
 Maintainer: Rampal S. Etienne <r.s.etienne@rug.nl>
 Repository: CRAN
-Date/Publication: 2021-05-25 15:20:06 UTC
+Date/Publication: 2021-07-16 07:30:05 UTC
