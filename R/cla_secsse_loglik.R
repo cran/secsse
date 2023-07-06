@@ -90,15 +90,15 @@ cla_secsse_loglik <- function(parameter,
                               loglik_penalty = 0,
                               is_complete_tree = FALSE,
                               num_threads = 1,
-                              method = ifelse(num_threads == 1,
-                                          "odeint::bulirsch_stoer",
-                                          "odeint::runge_kutta_fehlberg78"),
-                              atol = 1e-16,
-                              rtol = 1e-16) {
+                              method = "odeint::bulirsch_stoer",
+                              atol = 1e-8,
+                              rtol = 1e-7) {
   lambdas <- parameter[[1]]
   mus <- parameter[[2]]
   parameter[[3]][is.na(parameter[[3]])] <- 0
   Q <- parameter[[3]]  # nolint
+
+  num_modeled_traits <- ncol(Q) / floor(num_concealed_states)
 
   if (is.null(setting_calculation)) {
     check_input(traits,
@@ -111,7 +111,9 @@ cla_secsse_loglik <- function(parameter,
                                                  num_concealed_states,
                                                  sampling_fraction,
                                                  is_complete_tree,
-                                                 mus)
+                                                 mus,
+                                                 num_modeled_traits,
+                                                 first_time = TRUE)
   }
   states <- setting_calculation$states
 
@@ -121,7 +123,9 @@ cla_secsse_loglik <- function(parameter,
                            num_concealed_states = num_concealed_states,
                            sampling_fraction = sampling_fraction,
                            is_complete_tree = is_complete_tree,
-                           mus = mus)
+                           mus = mus,
+                           num_unique_traits = num_modeled_traits,
+                           first_time = FALSE)
   }
 
   forTime <- setting_calculation$forTime  # nolint
@@ -183,9 +187,9 @@ cla_secsse_loglik <- function(parameter,
                               lambdas,
                               mus,
                               Q,
-                              "odeint::bulirsch_stoer",
-                              1e-16,
-                              1e-12)
+                              method,
+                              atol,
+                              rtol)
     nodeM <- c(nodeM, y) # nolint
   }
 
@@ -197,7 +201,7 @@ cla_secsse_loglik <- function(parameter,
     mergeBranch2 <- mergeBranch2 / pre_cond # nolint
   }
 
-  wholeLike_atRoot <- sum(mergeBranch2 * weight_states) # nolint
+  wholeLike_atRoot <- sum(mergeBranch2 * weight_states, na.rm = TRUE) # nolint
   LL <- log(wholeLike_atRoot) + # nolint
         loglik -
         penalty(pars = parameter,
